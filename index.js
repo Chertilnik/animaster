@@ -68,10 +68,8 @@ function addListeners() {
                 .addScale(800, 1)
                 .addMove(200, {x: 40, y: -40})
                 .addScale(800, 0.7)
-                .addFadeOut(500)
                 .addMove(200, {x: 0, y: 0})
-                .addScale(800, 1)
-                .addFadeIn(500);
+                .addScale(800, 1);
 
             customAnimation.play(block);
         });
@@ -161,34 +159,70 @@ function animaster() {
             return this;
         },
 
-        play(element) {
-            let curr = 0;
+        play(element, cycled = false) {
+            const steps = [...this._steps];
+            const timers = [];
+            const animasterInstance = this;
+            let isStopped = false;
 
-            this._steps.forEach(step => {
-                setTimeout(() => {
+            const executeStep = (stepIndex, delay) => {
+                if (isStopped) return;
+
+                const timer = setTimeout(() => {
+                    if (isStopped) return;
+
+                    const step = steps[stepIndex];
+
                     switch (step.name) {
                         case 'move':
-                            this.move(element, step.duration, step.params.translation);
+                            animasterInstance.move(element, step.duration, step.params.translation);
                             break;
-
                         case 'scale':
-                            this.scale(element, step.duration, step.params.ratio);
+                            animasterInstance.scale(element, step.duration, step.params.ratio);
                             break;
-
                         case 'fadeIn':
-                            this.fadeIn(element, step.duration);
+                            animasterInstance.fadeIn(element, step.duration);
                             break;
-
                         case 'fadeOut':
-                            this.fadeOut(element, step.duration);
+                            animasterInstance.fadeOut(element, step.duration);
+                            break;
+                        case 'delay':
                             break;
                     }
-                }, curr);
 
-                curr += step.duration;
-            });
+                    if (!isStopped) {
+                        if (stepIndex < steps.length - 1) {
+                            executeStep(stepIndex + 1, delay + step.duration);
+                        } else if (cycled) {
+                            // Сбрасываем только transform, но не удаляем классы show/hide
+                            element.style.transform = null;
+                            executeStep(0, delay + step.duration);
+                        }
+                    }
+                }, delay);
 
-            this._steps = [];
+                timers.push(timer);
+            };
+
+            executeStep(0, 0);
+
+            if (!cycled) {
+                this._steps = [];
+            }
+
+            return {
+                stop: () => {
+                    isStopped = true;
+                    timers.forEach(timer => clearTimeout(timer));
+                    timers.length = 0;
+                    animasterInstance.resetAnimation(element);
+                }
+            };
+        },
+
+        resetAnimation(element) {
+            element.style.transitionDuration = null;
+            element.style.transform = null;
         },
 
         /**
@@ -206,9 +240,12 @@ function animaster() {
             const animasterblablablabla = this;
             return {
                 play() {
-                    element.style.transitionDuration = `${duration * 0.4}ms`;
-                    element.style.transform = getTransform({x: 100, y: -20})
-                    animasterblablablabla.fadeOut(element, duration * 0.6);
+                    const animation = animasterblablablabla.
+                        addMove(duration * 0.4, {x: 100, y: -20})
+                        .addFadeOut(duration * 0.6);
+
+                    animation.play(element);
+
                 },
                 stop() {
                     animasterblablablabla.resetMoveAndScale(element);
@@ -219,30 +256,43 @@ function animaster() {
         },
 
         showAndHide(element, duration) {
-            this.fadeIn(element, duration * 1 / 3);
-            setTimeout(() => {
-                this.fadeOut(element, duration * 1.3);
-            }, duration * 1 / 3);
+            const animation = this.
+            addFadeIn(duration * 1/3)
+                .addDelay(duration * 1/3)
+                .addFadeOut(duration * 1/3);
+
+            animation.play(element);
         },
 
         heartBeating(element) {
             const animasterblablabla = this;
+            let currentAnimation = null;
+
             return {
                 intervalId: null,
                 play() {
-                    this.intervalId = setInterval(() => {
-                        animasterblablabla.scale(element, 500, 1.4);
-                        setTimeout(() => {
-                            animasterblablabla.scale(element, 500, 1);
-                        }, 500);
+                    const animation = animasterblablabla
+                        .addScale(500, 1.4)
+                        .addScale(500, 1);
 
-                    }, 1500)
+                    currentAnimation = animation.play(element, true);
                 },
                 stop() {
-                    clearInterval(this.intervalId);
-                    this.intervalId = null;
+                    if (currentAnimation && currentAnimation.stop) {
+                        currentAnimation.stop();
+                    }
+                    animasterblablabla.resetMoveAndScale(element);
                 }
             }
+        },
+
+        addDelay(duration) {
+            this._steps.push({
+                name: 'delay',
+                duration: duration,
+                params: {}
+            });
+            return this;
         }
     }
 
