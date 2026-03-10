@@ -36,7 +36,6 @@ function addListeners() {
         });
     document.getElementById('moveAndHideStop')
         .addEventListener('click', function () {
-            const block = document.getElementById('moveAndHideBlock');
             if (moveAndHideAnimation) {
                 moveAndHideAnimation.stop();
             }
@@ -54,12 +53,28 @@ function addListeners() {
         });
     document.getElementById('heartBeatingStop')
         .addEventListener('click', function () {
-            const block = document.getElementById('heartBeatingBlock');
-           if (heartBeatingAnimation) {
-               heartBeatingAnimation.stop();
-           }
+            if (heartBeatingAnimation) {
+                heartBeatingAnimation.stop();
+            }
         });
+    document.getElementById('abobaPlay')
+        .addEventListener('click', function () {
+            const block = document.getElementById('abobaBlock');
 
+            const customAnimation = animaster()
+                .addMove(200, {x: 40, y: 40})
+                .addScale(800, 1.3)
+                .addMove(200, {x: 80, y: 0})
+                .addScale(800, 1)
+                .addMove(200, {x: 40, y: -40})
+                .addScale(800, 0.7)
+                .addFadeOut(500)
+                .addMove(200, {x: 0, y: 0})
+                .addScale(800, 1)
+                .addFadeIn(500);
+
+            customAnimation.play(block);
+        });
 }
 
 /**
@@ -69,7 +84,11 @@ function addListeners() {
  */
 
 function animaster() {
-    return {
+    const _steps = [];
+
+    const animasterInstance = {
+        _steps: _steps,
+
         resetfadeIn(element) {
             element.classList.remove('show');
             element.style.transitionDuration = null;
@@ -104,6 +123,72 @@ function animaster() {
         move(element, duration, translation) {
             element.style.transitionDuration = `${duration}ms`;
             element.style.transform = getTransform(translation, null);
+        },
+
+        addMove(duration, translation) {
+            this._steps.push({
+                name: 'move',
+                duration: duration,
+                params: {translation: translation},
+            });
+            return this;
+        },
+
+        addScale(duration, ratio) {
+            this._steps.push({
+                name: 'scale',
+                duration: duration,
+                params: {ratio: ratio},
+            });
+            return this;
+        },
+
+        addFadeIn(duration) {
+            this._steps.push({
+                name: 'fadeIn',
+                duration: duration,
+                params: {}
+            });
+            return this;
+        },
+
+        addFadeOut(duration) {
+            this._steps.push({
+                name: 'fadeOut',
+                duration: duration,
+                params: {}
+            });
+            return this;
+        },
+
+        play(element) {
+            let curr = 0;
+
+            this._steps.forEach(step => {
+                setTimeout(() => {
+                    switch (step.name) {
+                        case 'move':
+                            this.move(element, step.duration, step.params.translation);
+                            break;
+
+                        case 'scale':
+                            this.scale(element, step.duration, step.params.ratio);
+                            break;
+
+                        case 'fadeIn':
+                            this.fadeIn(element, step.duration);
+                            break;
+
+                        case 'fadeOut':
+                            this.fadeOut(element, step.duration);
+                            break;
+                    }
+                }, curr);
+
+                curr += step.duration;
+            });
+
+            this._steps = [];
         },
 
         /**
@@ -142,8 +227,9 @@ function animaster() {
 
         heartBeating(element) {
             const animasterblablabla = this;
-            return { intervalId: null,
-                    play() {
+            return {
+                intervalId: null,
+                play() {
                     this.intervalId = setInterval(() => {
                         animasterblablabla.scale(element, 500, 1.4);
                         setTimeout(() => {
@@ -157,10 +243,10 @@ function animaster() {
                     this.intervalId = null;
                 }
             }
-
-
         }
     }
+
+    return animasterInstance;
 }
 
 
